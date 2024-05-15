@@ -1,7 +1,7 @@
 #pragma once 
-
 #include <iostream>
 #include <WS2tcpip.h> //  WinSock2 Extension for TCP/IP protocols
+#include <Winsock2.h>
 #include <string>
 #include <sstream>
 
@@ -21,4 +21,5 @@ private:
     int _socket;
     const char* _ipAddress;
     int _port;
-}
+    fd_set _master;
+};
