@@ -17,6 +17,9 @@ public:
 protected:
     void onConnect();
     void onDisconnect();
+    void onRecievedMessage(int clientSock, const char* msg, int msgLength);
+    void clientBroadcast(int clientSock, const char* msg, int msgLength);
+    void globalBroadcast(int whoSent, const char* msg, int msgLength);
 private:
     //Internals 
     int _socket;

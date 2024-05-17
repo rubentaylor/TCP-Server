@@ -75,14 +75,7 @@ int TCPListener::run(){
 				else
 				{
 
-					// Send message
-					for (int i = 0; i < _master.fd_count; i++)
-					{
-						SOCKET outSock = _master.fd_array[i];
-						if (outSock != _socket && outSock != sock)
-						{
-						}
-					}
+					
 				}
 			}
 		}
@@ -97,5 +90,30 @@ int TCPListener::run(){
 		send(sock,closing.c_str(),closing.size()+1,0);
 		FD_CLR(sock,&_master);
 		closesocket(sock);
-	} 
+	}
+	WSACleanup();
+}
+void TCPListener::clientBroadcast(int clientSock, const char* msg, int msgLength){
+	send(clientSock, msg, msgLength, 0);
+}
+void TCPListener::globalBroadcast(int whoSent, const char* msg, int msgLength){
+	for (int i = 0; i < _master.fd_count; i++){
+		SOCKET outSock = _master.fd_array[i];
+		if (outSock != _socket && outSock != whoSent)
+		{
+			clientBroadcast(outSock, msg, msgLength);
+		}
+		else if (outSock == whoSent){
+			clientBroadcast(outSock,"Broadcasted Successfully!",26);
+		}
+	}
+}
+void TCPListener::onConnect(){
+	
+}
+void TCPListener::onDisconnect(){
+
+}
+void TCPListener::onRecievedMessage(int clientSock, const char* msg, int msgLength){
+
 }
