@@ -15,7 +15,8 @@ public:
     int initializer();
     int run();
 protected:
-
+    void onConnect();
+    void onDisconnect();
 private:
     //Internals 
     int _socket;

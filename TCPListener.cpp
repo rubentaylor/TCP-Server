@@ -87,4 +87,15 @@ int TCPListener::run(){
 			}
 		}
 	}
+	//Close connection
+	FD_CLR(_socket,&_master);
+	closesocket(_socket);
+
+	std::string closing = "Server is now closing. \r\n";
+	while (_master.fd_count > 0){
+		SOCKET sock = _master.fd_array[0];
+		send(sock,closing.c_str(),closing.size()+1,0);
+		FD_CLR(sock,&_master);
+		closesocket(sock);
+	} 
 }
