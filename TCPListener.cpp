@@ -9,7 +9,7 @@ int TCPListener::initializer(){
 	if (wsOk != 0)
 	{
 		std::cerr << "Can't initialize Socket" << std::endl;
-		return;
+		return 1;
 	}
 	
 	// Create a socket
@@ -74,7 +74,7 @@ int TCPListener::run(){
 				}
 				else
 				{
-
+					onRecievedMessage(sock, buf, bytesIn);
 					
 				}
 			}
@@ -92,6 +92,7 @@ int TCPListener::run(){
 		closesocket(sock);
 	}
 	WSACleanup();
+	return 0;
 }
 void TCPListener::clientBroadcast(int clientSock, const char* msg, int msgLength){
 	send(clientSock, msg, msgLength, 0);
