@@ -15,9 +15,9 @@ public:
     int initializer();
     int run();
 protected:
-    void onConnect();
-    void onDisconnect();
-    void onRecievedMessage(int clientSock, const char* msg, int msgLength);
+    virtual void onConnect(int clientSock);
+    virtual void onDisconnect(int clientSock);
+    virtual void onRecievedMessage(int clientSock, const char* msg, int msgLength);
     void clientBroadcast(int clientSock, const char* msg, int msgLength);
     void globalBroadcast(int whoSent, const char* msg, int msgLength);
 private:

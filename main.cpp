@@ -1,7 +1,11 @@
-#include "TCPListener.h"
-//Port: 50000, local use 
+#include "ClientChat.h"
+//Port: 54000, local use 
 
 int main()
 {
-	return 0;
+	ClientChat cc("0.0.0.0",54000);
+	if (cc.initializer() != 0){
+		return 1;
+	}
+	cc.run(); 
 }

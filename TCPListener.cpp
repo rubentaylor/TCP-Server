@@ -40,6 +40,7 @@ int TCPListener::initializer(){
 }
 
 int TCPListener::run(){
+
 	bool running = true;
 	while (running)
 	{
@@ -58,6 +59,7 @@ int TCPListener::run(){
 				SOCKET client = accept(_socket, nullptr, nullptr);
 				// Add the new connection to the list of connected clients
 				FD_SET(client, &_master);
+				onConnect(client);
 			}
 			else // It's an inbound message
 			{
@@ -69,6 +71,7 @@ int TCPListener::run(){
 
 				if (bytesIn <= 0) // client has dropped
 				{
+					onDisconnect(sock);
 					closesocket(sock);
 					FD_CLR(sock, &_master);
 				}
@@ -80,6 +83,7 @@ int TCPListener::run(){
 			}
 		}
 	}
+
 	//Close connection
 	FD_CLR(_socket,&_master);
 	closesocket(_socket);
@@ -109,10 +113,10 @@ void TCPListener::globalBroadcast(int whoSent, const char* msg, int msgLength){
 		}
 	}
 }
-void TCPListener::onConnect(){
+void TCPListener::onConnect(int clientSock){
 	
 }
-void TCPListener::onDisconnect(){
+void TCPListener::onDisconnect(int clientSock){
 
 }
 void TCPListener::onRecievedMessage(int clientSock, const char* msg, int msgLength){
