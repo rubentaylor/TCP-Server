@@ -5,11 +5,11 @@
 void ClientChat::onConnect(int clientSock){
     // Welcome
     std::string welcome = "Welcome to the server!";
-    send(clientSock, welcome.c_str(), welcome.size()+1,0);
+    clientBroadcast(clientSock, welcome.c_str(), welcome.size()+1);
 }
 void ClientChat::onDisconnect(int clientSock){
 
 }
 void ClientChat::onRecievedMessage(int clientSock, const char* msg, int msgLength){
-    TCPListener::clientBroadcast(clientSock, msg, msgLength);
+    globalBroadcast(clientSock, msg, msgLength);
 }

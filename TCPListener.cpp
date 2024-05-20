@@ -9,7 +9,7 @@ int TCPListener::initializer(){
 	if (wsOk != 0)
 	{
 		std::cerr << "Can't initialize Socket" << std::endl;
-		return 1;
+		return wsOk;
 	}
 	
 	// Create a socket
@@ -23,7 +23,7 @@ int TCPListener::initializer(){
 	sockaddr_in hint;
 	hint.sin_family = AF_INET; // IPv4
 	hint.sin_port = htons(_port); // Converts port number to network byte 
-	//inet_pton(AF_INET, _ipAddress, &hint.sin_addr); // IP to binary
+	inet_pton(AF_INET, _ipAddress, &hint.sin_addr); // IP to binary
 	
 	
 	if (bind(_socket, (sockaddr*)&hint, sizeof(hint)) == SOCKET_ERROR){
@@ -91,7 +91,7 @@ int TCPListener::run(){
 	std::string closing = "Server is now closing. \r\n";
 	while (_master.fd_count > 0){
 		SOCKET sock = _master.fd_array[0];
-		send(sock,closing.c_str(),closing.size()+1,0);
+		//send(sock,closing.c_str(),closing.size()+1,0);
 		FD_CLR(sock,&_master);
 		closesocket(sock);
 	}
@@ -102,16 +102,13 @@ void TCPListener::clientBroadcast(int clientSock, const char* msg, int msgLength
 	send(clientSock, msg, msgLength, 0);
 }
 void TCPListener::globalBroadcast(int whoSent, const char* msg, int msgLength){
-	for (int i = 0; i < _master.fd_count; i++){
-		SOCKET outSock = _master.fd_array[i];
-		if (outSock != _socket && outSock != whoSent)
-		{
-			clientBroadcast(outSock, msg, msgLength);
-		}
-		else if (outSock == whoSent){
-			clientBroadcast(outSock,"Broadcasted Successfully!",26);
-		}
-	}
+    for (int i = 0; i < _master.fd_count; i++){
+        SOCKET outSock = _master.fd_array[i];
+        if (outSock != _socket && outSock != whoSent)
+        {
+            clientBroadcast(outSock, msg, msgLength);
+        }
+    }
 }
 void TCPListener::onConnect(int clientSock){
 	

@@ -8,6 +8,6 @@ protected:
     void onConnect(int clientSock);
     void onDisconnect(int clientSock);
     void onRecievedMessage(int clientSock, const char* msg, int msgLength);
-    void clientBroadcast(int clientSock, const char* msg, int msgLength);
-    void globalBroadcast(int whoSent, const char* msg, int msgLength);
+    //void clientBroadcast(int clientSock, const char* msg, int msgLength);
+    //void globalBroadcast(int whoSent, const char* msg, int msgLength);
 };
