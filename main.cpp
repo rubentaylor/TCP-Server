@@ -3,9 +3,9 @@
 
 int main()
 {
-	ClientChat cc("0.0.0.0",54000);
-	if (cc.initializer() != 0){
+	ClientChat chat("0.0.0.0",54000);
+	if (chat.initializer() != 0){
 		return 1;
 	}
-	cc.run(); 
+	chat.run(); 
 }
