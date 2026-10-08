@@ -1,4 +1,6 @@
 #include "TCPListener.h"
+#include <algorithm>
+#include <cstring>
 
 namespace tcp
 {
@@ -14,7 +16,11 @@ namespace tcp
 	}
 #endif
 }
+#ifdef _WIN32
+#define INVALID INVALID_SOCKET
+#else
 #define INVALID -1
+#endif
 
 int TCPListener::initializer()
 {
@@ -43,7 +49,7 @@ int TCPListener::initializer()
 	}
 
 	// Fill in the socket address structure
-	sockaddr_in addressInfo;
+	sockaddr_in addressInfo{};
 	addressInfo.sin_family = AF_INET; // ipv4
 	addressInfo.sin_port = htons(_port);
 	inet_pton(AF_INET, _ipAddress, &addressInfo.sin_addr);
@@ -62,9 +68,6 @@ int TCPListener::initializer()
 		return 1;
 	}
 	std::cout << "Server listening on " << _ipAddress << ":" << _port << std::endl;
-	// Track the listening socket
-	FD_ZERO(&_trackedSockets);		   // clear the master set
-	FD_SET(_socket, &_trackedSockets); // add the listening socket to the master set
 	return 0;
 }
 
@@ -76,92 +79,56 @@ void TCPListener::acceptNewClient()
 		return;
 	}
 
-	FD_SET(clientSocket, &_trackedSockets); // add the new client socket to the master set
-	_clientSockets.push_back(clientSocket);
-	onConnect(clientSocket);
-}
-
-void TCPListener::processClientMessage(SOCKET clientSocket)
-{
-	char buffer[4096];
-	std::memset(buffer, 0, sizeof(buffer));
-
-	int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-	if (bytesReceived <= 0)
+	// only locks the mutex when adding the socket to the list, destroys lock after
 	{
-		disconnectClient(clientSocket);
-		return;
+		std::lock_guard<std::mutex> lock(_clientSocketsMutex);
+		_clientSockets.push_back(clientSocket);
 	}
 
-	onRecievedMessage(clientSocket, buffer, bytesReceived);
+	onConnect(clientSocket);
+	int threadCount = currentThreadCount.fetch_add(1) + 1;
+	// Start a thread to handle this client.
+	std::thread(&TCPListener::handleClient, this, clientSocket).detach();
+	std::cout << "New client connected from: " << _ipAddress << ". Threads:" << threadCount << std::endl;
+}
+
+void TCPListener::handleClient(SOCKET clientSocket)
+{
+	char buffer[4096];
+	while (true)
+	{
+		int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+		if (bytesReceived <= 0)
+		{
+			disconnectClient(clientSocket);
+			break;
+		}
+
+		onRecievedMessage(clientSocket, buffer, bytesReceived);
+	}
+
+	int threadCount = currentThreadCount.fetch_sub(1) - 1;
+	std::cout << "Client thread ended. Threads:" << threadCount << std::endl;
 }
 
 void TCPListener::disconnectClient(SOCKET clientSocket)
 {
 	onDisconnect(clientSocket);
-	tcp::closeSocket(clientSocket);
-	FD_CLR(clientSocket, &_trackedSockets);
-	_clientSockets.erase(
-		std::remove(_clientSockets.begin(), _clientSockets.end(), clientSocket),
-		_clientSockets.end());
-}
-
-void TCPListener::handleReadySocket(SOCKET socket)
-{
-	if (socket == _socket)
 	{
-		acceptNewClient();
-		return;
+		std::lock_guard<std::mutex> lock(_clientSocketsMutex);
+		_clientSockets.erase(
+			std::remove(_clientSockets.begin(), _clientSockets.end(), clientSocket),
+			_clientSockets.end());
+		tcp::closeSocket(clientSocket);
 	}
-
-	processClientMessage(socket);
 }
 
 int TCPListener::run()
 {
-	bool running = true;
-
-	while (running)
+	while (true)
 	{
-		fd_set readySockets = _trackedSockets;
-		int socketCount = select(FD_SETSIZE, &readySockets, nullptr, nullptr, nullptr);
-
-		if (socketCount <= 0)
-		{
-			continue;
-		}
-
-#ifdef _WIN32
-		for (int i = 0; i < socketCount; ++i)
-		{
-			handleReadySocket(readySockets.fd_array[i]);
-		}
-#else
-		for (int fileDescriptor = 0; fileDescriptor < FD_SETSIZE; ++fileDescriptor)
-		{
-			if (FD_ISSET(fileDescriptor, &readySockets))
-			{
-				handleReadySocket(fileDescriptor);
-			}
-		}
-#endif
+		acceptNewClient();
 	}
-
-	// Close everything before the server stops
-	FD_CLR(_socket, &_trackedSockets);
-	tcp::closeSocket(_socket);
-
-	for (SOCKET clientSocket : _clientSockets)
-	{
-		FD_CLR(clientSocket, &_trackedSockets);
-		tcp::closeSocket(clientSocket);
-	}
-	_clientSockets.clear();
-
-#ifdef _WIN32
-	WSACleanup();
-#endif
-	return 0;
 }
 
 void TCPListener::onConnect(int clientSock)
@@ -175,7 +142,8 @@ void TCPListener::onDisconnect(int clientSock)
 // Sends one message to a single connected client.
 void TCPListener::clientBroadcast(int clientSock, const char *msg, int msgLength)
 {
-	send(clientSock, msg, msgLength, 0);
+	std::lock_guard<std::mutex> lock(_clientSocketsMutex);
+	sendMessage(clientSock, msg, msgLength);
 }
 
 void TCPListener::onRecievedMessage(int clientSock, const char *msg, int msgLength)
@@ -185,12 +153,17 @@ void TCPListener::onRecievedMessage(int clientSock, const char *msg, int msgLeng
 
 void TCPListener::globalBroadcast(int whoSent, const char *msg, int msgLength)
 {
-	// Send message to all other clients except themselves
+	std::lock_guard<std::mutex> lock(_clientSocketsMutex);
 	for (SOCKET clientSocket : _clientSockets)
 	{
-		if (clientSocket != _socket && clientSocket != whoSent)
+		if (clientSocket != whoSent)
 		{
-			clientBroadcast(clientSocket, msg, msgLength);
+			sendMessage(clientSocket, msg, msgLength);
 		}
 	}
+}
+
+void TCPListener::sendMessage(SOCKET clientSocket, const char *msg, int msgLength)
+{
+	send(clientSocket, msg, msgLength, 0);
 }

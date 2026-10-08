@@ -1,7 +1,10 @@
 #pragma once
 
+#include <atomic>
 #include <iostream>
+#include <mutex>
 #include <vector>
+#include <thread>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -42,13 +45,14 @@ protected:
 
 private:
     void acceptNewClient();
-    void handleReadySocket(SOCKET socket);
-    void processClientMessage(SOCKET clientSocket);
+    void handleClient(SOCKET clientSocket);
     void disconnectClient(SOCKET clientSocket);
+    void sendMessage(SOCKET clientSocket, const char *msg, int msgLength);
 
-    SOCKET _socket;                     // listening socket for incoming connections
-    const char *_ipAddress;             // address the server binds to
-    int _port;                          // port the server listens on
-    fd_set _trackedSockets;             // all sockets currently tracked by the server
-    std::vector<SOCKET> _clientSockets; // connected client sockets
+    SOCKET _socket;                         // listening socket for incoming connections
+    const char *_ipAddress;                 // address the server binds to
+    int _port;                              // port the server listens on
+    std::vector<SOCKET> _clientSockets;     // connected client sockets
+    std::mutex _clientSocketsMutex;         // protects client list and sends
+    std::atomic<int> currentThreadCount{0}; // tracks active client threads
 };

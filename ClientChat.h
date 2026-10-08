@@ -1,5 +1,6 @@
 #pragma once
 #include "TCPListener.h"
+#include <mutex>
 #include <unordered_map>
 #include <string>
 
@@ -16,4 +17,5 @@ protected:
 private:
     // Store the mapping of client sockets to usernames
     std::unordered_map<int, std::string> _clientUsernames;
+    std::mutex _usernamesMutex; // Multiple client threads access usernames concurrently.
 };

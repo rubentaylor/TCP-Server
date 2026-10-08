@@ -30,6 +30,7 @@ void ClientChat::onConnect(int clientSock)
 
 void ClientChat::onDisconnect(int clientSock)
 {
+    std::lock_guard<std::mutex> lock(_usernamesMutex);
     _clientUsernames.erase(clientSock);
 }
 
@@ -43,17 +44,20 @@ void ClientChat::onRecievedMessage(int clientSock, const char *msg, int msgLengt
         return;
     }
 
-    auto userIt = _clientUsernames.find(clientSock);
-    if (userIt == _clientUsernames.end())
+    std::string outgoingMessage;
     {
-        _clientUsernames[clientSock] = cleanedText;
-
-        std::string joinMessage = cleanedText + " has joined the chat.\n";
-        globalBroadcast(clientSock, joinMessage.c_str(), static_cast<int>(joinMessage.size()));
-        return;
+        std::lock_guard<std::mutex> lock(_usernamesMutex);
+        auto userIt = _clientUsernames.find(clientSock);
+        if (userIt == _clientUsernames.end())
+        {
+            _clientUsernames[clientSock] = cleanedText;
+            outgoingMessage = cleanedText + " has joined the chat.\n";
+        }
+        else
+        {
+            outgoingMessage = userIt->second + ": " + cleanedText + "\n";
+        }
     }
 
-    std::string storedUsername = userIt->second;
-    std::string chatMessage = storedUsername + ": " + cleanedText + "\n";
-    globalBroadcast(clientSock, chatMessage.c_str(), static_cast<int>(chatMessage.size()));
+    globalBroadcast(clientSock, outgoingMessage.c_str(), static_cast<int>(outgoingMessage.size()));
 }
