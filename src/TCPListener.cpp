@@ -1,6 +1,7 @@
 #include "TCPListener.h"
 #include <algorithm>
 #include <cstring>
+#include <system_error>
 
 namespace tcp
 {
@@ -88,7 +89,17 @@ void TCPListener::acceptNewClient()
 	onConnect(clientSocket);
 	int threadCount = currentThreadCount.fetch_add(1) + 1;
 	// Start a thread to handle this client.
-	std::thread(&TCPListener::handleClient, this, clientSocket).detach();
+	try
+	{
+		std::thread(&TCPListener::handleClient, this, clientSocket).detach();
+	}
+	catch (const std::system_error &error)
+	{
+		currentThreadCount.fetch_sub(1);
+		std::cerr << "Could not start client thread: " << error.what() << std::endl;
+		disconnectClient(clientSocket);
+		return;
+	}
 	std::cout << "New client connected from: " << _ipAddress << ". Threads:" << threadCount << std::endl;
 }
 
